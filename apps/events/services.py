@@ -1,5 +1,5 @@
-from apps.events.events.base import BaseEvent
-from apps.events.events.publisher import EventPublisher
+from apps.events.domain.base import BaseEvent
+from apps.events.messaging.publisher import EventPublisher
 
 
 class UserEventService:

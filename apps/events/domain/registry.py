@@ -8,7 +8,7 @@ def register_event(event_type, handler):
 def get_event_handlers(event_type):
     return event_registry.get(event_type, [])
 
-from .subscribers import (
+from apps.events.messaging.subscribers import (
     send_welcome_email,
     create_user_analytics,
 )

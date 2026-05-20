@@ -1,4 +1,4 @@
-from .registry import get_event_handlers
+from apps.events.domain.registry import get_event_handlers
 from apps.events.tasks import execute_event_handler_task
 
 class EventPublisher:

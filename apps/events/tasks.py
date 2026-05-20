@@ -1,5 +1,5 @@
 from celery import shared_task
-from apps.events.events.subscribers import subscriber_ap
+from apps.events.messaging.subscribers import subscriber_map
 
 @shared_task(bind=True, max_retries=3)
 def execute_event_handler_task(
