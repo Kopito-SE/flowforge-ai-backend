@@ -14,4 +14,4 @@ app.config_from_object(
 
 )
 
-app.autodiscover_task()
+app.autodiscover_tasks()
