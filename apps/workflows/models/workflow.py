@@ -1,22 +1,20 @@
 import uuid
 
-
 from django.db import models
+
 
 class Workflow(models.Model):
 
     STATUS_CHOICES = [
-        ("draft","Draft"),
-        ("active","Active"),
-        ("disabled","Disabled"),
+        ("draft", "Draft"),
+        ("active", "Active"),
+        ("disabled", "Disabled"),
     ]
 
     id = models.UUIDField(
-
         primary_key=True,
         default=uuid.uuid4,
-        editable=False
-
+        editable=False,
     )
 
     name = models.CharField(
@@ -28,10 +26,9 @@ class Workflow(models.Model):
     )
 
     status = models.CharField(
-
         max_length=20,
         choices=STATUS_CHOICES,
-        default="draft"
+        default="draft",
     )
 
     created_at = models.DateTimeField(
