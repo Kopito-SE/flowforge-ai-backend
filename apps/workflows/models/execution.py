@@ -1,8 +1,6 @@
 import uuid
 from django.db import models
 
-from apps.workflows.models import node
-from apps.workflows.models import workflow
 
 class WorkflowExecution(models.Model):
     STATUS_CHOICES = [
@@ -19,13 +17,13 @@ class WorkflowExecution(models.Model):
     )
 
     workflow = models.ForeignKey(
-        Workflow,
+        'Workflow',
         on_delete=models.CASCADE,
         related_name="execution"
     )
 
     current_node = models.ForeignKey(
-        Node,
+        'Node',
         null=True,
         blank=True,
         on_delete=models.SET_NULL

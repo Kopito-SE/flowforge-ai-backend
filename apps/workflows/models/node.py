@@ -1,6 +1,6 @@
 import uuid
 from django.db import models
-from apps.workflows.models.workflow import Workflow
+
 
 
 class Node(models.Model):
@@ -18,7 +18,7 @@ class Node(models.Model):
         editable=False
     )
     workflow = models.ForeignKey(
-        Workflow,
+        'Workflow',
         on_delete=models.CASCADE,
         related_name="nodes"
     )
