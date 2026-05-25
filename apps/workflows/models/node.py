@@ -10,7 +10,10 @@ class Node(models.Model):
         ("condition", "Condition"),
         ("email", "Email"),
         ("webhook", "Webhook"),
-        ("delay", "Delay")
+        ("delay", "Delay"),
+        ("event_trigger", "Event Trigger"),
+        ("schedule_trigger", "Schedule Trigger"),
+
     ]
     id = models.UUIDField(
         primary_key=True,
@@ -32,7 +35,9 @@ class Node(models.Model):
     configuration = models.JSONField(
 
         db_index=True,
-        default=dict
+        default=dict,
+        null=True,
+        blank=True
 
     )
     next_node = models.ForeignKey(

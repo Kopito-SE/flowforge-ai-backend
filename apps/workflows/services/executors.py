@@ -5,6 +5,7 @@ import time
 logger = logging.getLogger(__name__)
 
 class NodeExecutor:
+
     @staticmethod
     def execute(node, context):
 
@@ -12,7 +13,7 @@ class NodeExecutor:
 
         handler = getattr(
             NodeExecutor,
-            handle_name,
+            handler_name,
             None
         )
 
@@ -39,7 +40,7 @@ class NodeExecutor:
     @staticmethod
     def handle_webhook(node, context):
         url = node.configuration.get("url")
-        response = request.post(
+        response = requests.post(
             url,
             json=context,
             timeout=10
