@@ -19,14 +19,14 @@ class WorkflowTriggerService:
         event_type,
         payload
     ):
-        trigger_node = Node.objects.filter(
+        trigger_nodes = Node.objects.filter(
             node_type="event_trigger",
             configuration__event_type=event_type,
             workflow__status="active"
         )
 
         logger.info(
-            f"Found {trigger_node.count()} workflows"
+            f"Found {trigger_nodes.count()} workflows"
         )
 
         for trigger_node in trigger_nodes:
