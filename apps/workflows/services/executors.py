@@ -96,7 +96,7 @@ class NodeExecutor:
     @staticmethod
     def handle_delay(node, context):
 
-        seconds = node.configurations.get(
+        seconds = node.configuration.get(
             "seconds",
             5
         )

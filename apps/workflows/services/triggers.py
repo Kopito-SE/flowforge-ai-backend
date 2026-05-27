@@ -31,9 +31,12 @@ class WorkflowTriggerService:
 
         for trigger_node in trigger_nodes:
 
+            first_connection = trigger_node.outgoing_connections.first()
+            current_node = first_connection.target_node if first_connection else None
+
             execution = WorkflowExecution.objects.create(
                 workflow=trigger_node.workflow,
-                current_node=trigger_node.next_node,
+                current_node=current_node,
                 context=payload,
             )
 
