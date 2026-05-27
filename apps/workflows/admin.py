@@ -5,6 +5,7 @@ from django.utils.html import format_html
 from .models.workflow import Workflow
 from .models.node import Node
 from .models.execution import WorkflowExecution
+from .models.connection import NodeConnection
 
 
 # =========================
@@ -31,11 +32,84 @@ def changelist_link(url_name, query, label):
 class NodeInline(admin.TabularInline):
     model = Node
     extra = 1
-    fields = ["name", "node_type", "configuration", "next_node"]
-    raw_id_fields = ["next_node"]
+    fields = ["name", "node_type", "configuration"]
     show_change_link = True
 
+# ===================================================================
+# NodeConnection Inlines (for viewing connections from Node admin)
+# ===================================================================
 
+class OutgoingConnectionsInline(admin.TabularInline):
+    """Show connections where this node is the source"""
+    model = NodeConnection
+    fk_name = "source_node"
+    extra = 1
+    fields = ["target_node", "label", "created_at"]
+    readonly_fields = ["created_at"]
+    raw_id_fields = ["target_node"]
+    verbose_name = "Outgoing Connection"
+    verbose_name_plural = "Outgoing Connections"
+
+
+class IncomingConnectionsInline(admin.TabularInline):
+    """Show connections where this node is the target"""
+    model = NodeConnection
+    fk_name = "target_node"
+    extra = 0
+    fields = ["source_node", "label", "created_at"]
+    readonly_fields = ["created_at", "source_node"]
+    raw_id_fields = ["source_node"]
+    verbose_name = "Incoming Connection"
+    verbose_name_plural = "Incoming Connections"
+    can_delete = False
+    extra = 0
+
+
+@admin.register(NodeConnection)
+class NodeConnectionAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "source_node_link",
+        "target_node_link",
+        "label",
+        "created_at",
+    )
+
+    list_filter = ("label", "created_at", "source_node__workflow")
+    search_fields = ("source_node__name", "target_node__name", "label")
+
+    readonly_fields = ("id", "created_at")
+    raw_id_fields = ("source_node", "target_node")
+
+    fieldsets = (
+        ("Connection", {
+            "fields": ("id", "source_node", "target_node", "label")
+        }),
+        ("Timestamps", {
+            "fields": ("created_at",),
+            "classes": ("collapse",)
+        }),
+    )
+
+    @admin.display(description="Source Node")
+    def source_node_link(self, obj):
+        if not obj.source_node:
+            return "-"
+        return admin_link(
+            "admin:workflows_node_change",
+            obj.source_node,
+            f"{obj.source_node.name} ({obj.source_node.node_type})"
+        )
+
+    @admin.display(description="Target Node")
+    def target_node_link(self, obj):
+        if not obj.target_node:
+            return "-"
+        return admin_link(
+            "admin:workflows_node_change",
+            obj.target_node,
+            f"{obj.target_node.name} ({obj.target_node.node_type})"
+        )
 # =========================
 # Workflow Admin
 # =========================
@@ -143,7 +217,6 @@ class NodeAdmin(admin.ModelAdmin):
         "name",
         "node_type",
         "workflow_link",
-        "next_node_link",
         "created_at",
     )
 
@@ -152,7 +225,7 @@ class NodeAdmin(admin.ModelAdmin):
 
     readonly_fields = ("id", "created_at")
 
-    raw_id_fields = ("workflow", "next_node")
+    raw_id_fields = ("workflow",)
 
     fieldsets = (
         ("Basic Information", {
@@ -164,9 +237,7 @@ class NodeAdmin(admin.ModelAdmin):
             "classes": ("wide",)
         }),
 
-        ("Flow Control", {
-            "fields": ("next_node",)
-        }),
+
 
         ("Timestamps", {
             "fields": ("created_at",),
@@ -182,13 +253,7 @@ class NodeAdmin(admin.ModelAdmin):
             obj.workflow.name if obj.workflow else "",
         )
 
-    @admin.display(description="Next Node")
-    def next_node_link(self, obj):
-        return admin_link(
-            "admin:workflows_node_change",
-            obj.next_node,
-            obj.next_node.name if obj.next_node else "",
-        )
+
 
 
 # =========================
@@ -319,5 +384,3 @@ class WorkflowExecutionAdmin(admin.ModelAdmin):
             "<pre>{}</pre>",
             json.dumps(obj.context or {}, indent=2),
         )
-
-

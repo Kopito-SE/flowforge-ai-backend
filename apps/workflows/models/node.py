@@ -6,6 +6,7 @@ from django.db import models
 class Node(models.Model):
 
     NODE_TYPES = [
+
         ("trigger", "Trigger"),
         ("condition", "Condition"),
         ("email", "Email"),
@@ -15,23 +16,28 @@ class Node(models.Model):
         ("schedule_trigger", "Schedule Trigger"),
 
     ]
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
         editable=False
     )
+
     workflow = models.ForeignKey(
         'Workflow',
         on_delete=models.CASCADE,
         related_name="nodes"
     )
+
     name = models.CharField(
         max_length=255
     )
+
     node_type = models.CharField(
         max_length=20,
         choices=NODE_TYPES
     )
+
     configuration = models.JSONField(
 
         db_index=True,
@@ -40,13 +46,7 @@ class Node(models.Model):
         blank=True
 
     )
-    next_node = models.ForeignKey(
-        "self",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL
 
-    )
     created_at = models.DateTimeField(
         auto_now_add=True
     )

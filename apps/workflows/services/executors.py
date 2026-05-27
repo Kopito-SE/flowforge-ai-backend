@@ -7,6 +7,47 @@ logger = logging.getLogger(__name__)
 class NodeExecutor:
 
     @staticmethod
+    def handle_condition(node, context):
+
+        field = node.configuration.get("field")
+        operator = node.configuration.get("operator")
+        value = node.configuration.get("value")
+        actual_value = context.get(field)
+
+        result = False
+
+        if operator == "==":
+            result = actual_value == value
+
+        elif operator == ">":
+            result = actual_value > value
+
+        elif operator == "<":
+            result = actual_value < value
+
+        elif operator == ">=":
+            result = actual_value >= value
+
+        elif operator == "<=":
+            result = actual_value <= value
+
+        elif operator == "!=":
+            result = actual_value != value
+
+        elif operator == "contains":
+            result = value in actual_value
+
+        logger.info(
+            f"Condition evaluated: {result}"
+        )
+
+        return {
+            **context,
+            "__condition_result__": result
+        }
+
+
+    @staticmethod
     def execute(node, context):
 
         handler_name = f"handle_{node.node_type}"
@@ -67,31 +108,3 @@ class NodeExecutor:
         time.sleep(seconds)
 
         return context
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
