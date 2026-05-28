@@ -1,17 +1,18 @@
 import json
 import logging
+from typing import Optional
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
-from apps.workflows.models import Workflow, WorkflowExecution
+from apps.workflows.models import Workflow, WorkflowExecution, Node
 from apps.workflows.tasks import execute_workflow_task
 
 logger = logging.getLogger(__name__)
 
 
-def _resolve_entry_node(workflow):
+def _resolve_entry_node(workflow: Workflow) -> Optional['Node']:
     """
     Pick the node that should start a manual run.
 
@@ -34,7 +35,11 @@ def _resolve_entry_node(workflow):
 @require_http_methods(["POST"])
 def trigger_workflow_api(request):
     try:
-        body = json.loads(request.body)
+        # Handle empty request body
+        if not request.body:
+            return JsonResponse({'error': 'Request body is required'}, status=400)
+
+        body = json.loads(request.body.decode('utf-8'))
         workflow_id = body.get('workflow_id')
 
         logger.info(f"Received workflow_id: {workflow_id} (type: {type(workflow_id)})")
@@ -86,11 +91,15 @@ def trigger_workflow_api(request):
     except Workflow.DoesNotExist:
         logger.error(f"Workflow with id {workflow_id} not found")
         return JsonResponse({'error': f'Workflow with id {workflow_id} not found'}, status=404)
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in request body: {str(e)}")
+        return JsonResponse({'error': 'Invalid JSON in request body'}, status=400)
     except Exception as e:
         logger.error(f"Error: {str(e)}", exc_info=True)
         return JsonResponse({'error': str(e)}, status=500)
 
 
+@require_http_methods(["GET"])
 def list_workflows(request):
     workflows = Workflow.objects.all().values('id', 'name', 'created_at')
     return JsonResponse({
