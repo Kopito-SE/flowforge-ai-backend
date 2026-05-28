@@ -16,7 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from apps.workflows.views import trigger_workflow_api, list_workflows
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/trigger-workflow/', trigger_workflow_api, name='trigger_workflow'),
+    path('api/workflows/', list_workflows, name='list_workflows'),
 ]
