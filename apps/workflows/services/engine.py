@@ -1,4 +1,5 @@
 import logging
+from django.utils import timezone
 from apps.workflows.models import WorkflowExecution
 from apps.workflows.services.executors import NodeExecutor
 
@@ -12,6 +13,13 @@ class WorkFlowEngine:
         execution = WorkflowExecution.objects.get(id=execution_id)
         execution.status = "running"
         execution.save()
+
+        if not execution.current_node:
+            execution.status = "completed"
+            execution.completed_at = timezone.now()
+            execution.save(update_fields=["status", "completed_at"])
+            logger.info(f"Execution {execution.id} completed without nodes")
+            return
 
         if use_celery:
             # Import inside the method to avoid circular import
@@ -52,6 +60,7 @@ class WorkFlowEngine:
 
                     if next_connection:
                         next_node = next_connection.target_node
+                        
                 else:
                     next_connection = connections.first()
                     if next_connection:
@@ -63,12 +72,14 @@ class WorkFlowEngine:
                 execution.save()
 
             execution.status = "completed"
+            execution.completed_at = timezone.now()
             execution.save()
             logger.info(f"Execution {execution.id} completed")
 
         except Exception as exc:
             execution.status = "failed"
             execution.error_message = str(exc)
+            execution.completed_at = timezone.now()
             execution.save()
             logger.error(f"Execution {execution.id} failed: {str(exc)}")
             raise

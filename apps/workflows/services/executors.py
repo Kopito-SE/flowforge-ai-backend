@@ -9,33 +9,38 @@ class NodeExecutor:
     @staticmethod
     def handle_condition(node, context):
 
-        field = node.configuration.get("field")
-        operator = node.configuration.get("operator")
-        value = node.configuration.get("value")
+        configuration = node.configuration or {}
+
+        field = configuration.get("field")
+        operator = configuration.get("operator")
+        value = configuration.get("value")
         actual_value = context.get(field)
 
         result = False
 
-        if operator == "==":
-            result = actual_value == value
+        try:
+            if operator == "==":
+                result = actual_value == value
 
-        elif operator == ">":
-            result = actual_value > value
+            elif operator == ">":
+                result = actual_value > value
 
-        elif operator == "<":
-            result = actual_value < value
+            elif operator == "<":
+                result = actual_value < value
 
-        elif operator == ">=":
-            result = actual_value >= value
+            elif operator == ">=":
+                result = actual_value >= value
 
-        elif operator == "<=":
-            result = actual_value <= value
+            elif operator == "<=":
+                result = actual_value <= value
 
-        elif operator == "!=":
-            result = actual_value != value
+            elif operator == "!=":
+                result = actual_value != value
 
-        elif operator == "contains":
-            result = value in actual_value
+            elif operator == "contains" and actual_value is not None:
+                result = value in actual_value
+        except (TypeError, ValueError):
+            result = False
 
         logger.info(
             f"Condition evaluated: {result}"
@@ -80,7 +85,8 @@ class NodeExecutor:
 
     @staticmethod
     def handle_webhook(node, context):
-        url = node.configuration.get("url")
+        configuration = node.configuration or {}
+        url = configuration.get("url")
         response = requests.post(
             url,
             json=context,
@@ -96,7 +102,9 @@ class NodeExecutor:
     @staticmethod
     def handle_delay(node, context):
 
-        seconds = node.configuration.get(
+        configuration = node.configuration or {}
+
+        seconds = configuration.get(
             "seconds",
             5
         )

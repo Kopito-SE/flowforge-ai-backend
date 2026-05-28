@@ -1,23 +1,12 @@
 import logging
 from celery import shared_task
 from django.db import DatabaseError
+from django.utils import timezone
+from apps.workflows.services.engine import WorkFlowEngine
+from apps.monitoring.services import ExecutionMonitorService
+from apps.workflows.models import  WorkflowExecution, ExecutionStep
+from apps.workflows.services.executors import NodeExecutor
 
-from apps.workflows.services.engine import (
-    WorkFlowEngine,
-)
-
-from apps.workflows.models import (
-    WorkflowExecution,
-    ExecutionStep,
-)
-
-from apps.workflows.models.connection import (
-    NodeConnection,
-)
-
-from apps.workflows.services.executors import (
-    NodeExecutor,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +48,10 @@ def execute_node_task(
 
     from apps.workflows.models import Node
 
+    execution = None
+    node = None
+    step = None
+
     try:
 
         execution = WorkflowExecution.objects.get(
@@ -74,6 +67,12 @@ def execute_node_task(
             node=node,
             status="running",
         )
+        ExecutionMonitorService.broadcast({
+            "type": "node_started",
+            "workflow_id": str(execution.workflow.id),
+            "node": node.name,
+            "status": "running"
+        })
 
         context = NodeExecutor.execute(
             node,
@@ -81,11 +80,16 @@ def execute_node_task(
         )
 
         step.status = "completed"
+        ExecutionMonitorService.broadcast({
+            "type": "node_completed",
+            "workflow_id": str(execution.workflow.id),
+            "node": node.name,
+            "status": "completed",
+        })
+        step.completed_at = timezone.now()
         step.save()
 
-        outgoing = (
-            node.outgoing_connections.all()
-        )
+        outgoing = node.outgoing_connections.all()
 
         if node.node_type == "condition":
 
@@ -103,19 +107,60 @@ def execute_node_task(
                 label=label
             )
 
-        for connection in outgoing:
+        next_connection = outgoing.first()
+
+        if next_connection:
+            execution.context = context
+            execution.current_node = next_connection.target_node
+            execution.save(update_fields=["context", "current_node"])
 
             execute_node_task.delay(
                 str(execution.id),
-                str(connection.target_node.id),
+                str(next_connection.target_node.id),
                 context,
+            )
+        else:
+            execution.context = context
+            execution.current_node = None
+            execution.status = "completed"
+            execution.completed_at = timezone.now()
+            execution.save(
+                update_fields=[
+                    "context",
+                    "current_node",
+                    "status",
+                    "completed_at",
+                ]
             )
 
     except Exception as exc:
 
-        step.status = "failed"
-        step.error_message = str(exc)
-        step.save()
+        if step is not None:
+            step.status = "failed"
+            step.error_message = str(exc)
+            step.completed_at = timezone.now()
+            step.save()
+
+        if execution is not None:
+            execution.status = "failed"
+            execution.error_message = str(exc)
+            execution.completed_at = timezone.now()
+            execution.save(
+                update_fields=[
+                    "status",
+                    "error_message",
+                    "completed_at",
+                ]
+            )
+
+        # Single broadcast after updating both step and execution
+        ExecutionMonitorService.broadcast({
+            "type": "node_failed",
+            "workflow_id": str(execution.workflow.id) if execution else str(execution_id),
+            "node": node.name if node else "unknown",
+            "status": "failed",
+            "error": str(exc),
+        })
 
         raise self.retry(
             exc=exc,
