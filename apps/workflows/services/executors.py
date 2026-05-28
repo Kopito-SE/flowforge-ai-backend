@@ -77,6 +77,14 @@ class NodeExecutor:
         return context
 
     @staticmethod
+    def handle_event_trigger(node, context):
+        logger.info(f"Event trigger node executed: {node.name}")
+        configuration = node.configuration or {}
+        event_name = configuration.get("event_name", "unknown")
+        logger.info(f"Processing event: {event_name}")
+        return context\
+
+    @staticmethod
     def handle_email(node, context):
         logger.info(
             f"Sending email:{node.configuration}"

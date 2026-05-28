@@ -1,12 +1,33 @@
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
-from apps.workflows.models import Workflow, WorkflowExecution
-from apps.workflows.tasks import execute_workflow_task
 import json
 import logging
 
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+
+from apps.workflows.models import Workflow, WorkflowExecution
+from apps.workflows.tasks import execute_workflow_task
+
 logger = logging.getLogger(__name__)
+
+
+def _resolve_entry_node(workflow):
+    """
+    Pick the node that should start a manual run.
+
+    Prefer a node with no incoming connections. If the graph is malformed,
+    fall back to the earliest created node so the workflow can still run.
+    """
+    entry_node = (
+        workflow.nodes.filter(incoming_connections__isnull=True)
+        .order_by("created_at")
+        .first()
+    )
+
+    if entry_node is None:
+        entry_node = workflow.nodes.order_by("created_at").first()
+
+    return entry_node
 
 
 @csrf_exempt
@@ -31,13 +52,24 @@ def trigger_workflow_api(request):
         for node in workflow.nodes.all():
             logger.info(f"  Node: {node.name} (type: {node.node_type})")
 
+        entry_node = _resolve_entry_node(workflow)
+        if entry_node is None:
+            return JsonResponse(
+                {"error": "workflow has no nodes to execute"},
+                status=400,
+            )
+
         # Create execution
         execution = WorkflowExecution.objects.create(
             workflow=workflow,
+            current_node=entry_node,
             status="pending"
         )
 
-        logger.info(f"Created execution {execution.id} with {nodes_count} nodes")
+        logger.info(
+            f"Created execution {execution.id} with {nodes_count} nodes "
+            f"starting at {entry_node.name}"
+        )
 
         # Trigger the Celery task
         execute_workflow_task.delay(str(execution.id))
