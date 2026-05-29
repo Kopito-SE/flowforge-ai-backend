@@ -6,7 +6,7 @@ from apps.workflows.services.engine import WorkFlowEngine
 from apps.monitoring.services import ExecutionMonitorService
 from apps.workflows.models import  WorkflowExecution, ExecutionStep
 from apps.workflows.services.executors import NodeExecutor
-
+from apps.executions.services import FailureHandlingService
 
 logger = logging.getLogger(__name__)
 
@@ -161,8 +161,22 @@ def execute_node_task(
             "status": "failed",
             "error": str(exc),
         })
+        retries=self.request.retries
 
+        if retries >= 3:
+            FailureHandlingService.move_to_dead_letter(
+                task_name="execution_node_task",
+                payload={
+                    "execution_id": execution_id,
+                    "node_id": node_id,
+                    "context": context,
+                },
+                error=exc,
+                retries=retries,
+            )
+            return
         raise self.retry(
             exc=exc,
-            countdown=5,
+            countdown=5
         )
+
