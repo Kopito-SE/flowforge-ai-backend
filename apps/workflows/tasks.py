@@ -47,10 +47,16 @@ def execute_node_task(
 ):
 
     from apps.workflows.models import Node
+    from apps.executions.services import IdempotencyService
 
     execution = None
     node = None
     step = None
+
+    idempotency_key = f"{execution_id}:{node_id}"
+    if IdempotencyService.is_proceesed(idempotency_key):
+        logger.info(f"Node {node_id} in execution {execution_id} already processed, skipping")
+        return
 
     try:
 
@@ -88,6 +94,8 @@ def execute_node_task(
         })
         step.completed_at = timezone.now()
         step.save()
+
+        IdempotencyService.mark_processed(idempotency_key)  # MARK AS PROCESSED AFTER SUCCESSFUL COMPLETION
 
         outgoing = node.outgoing_connections.all()
 
