@@ -54,7 +54,7 @@ def execute_node_task(
     step = None
 
     idempotency_key = f"{execution_id}:{node_id}"
-    if IdempotencyService.is_proceesed(idempotency_key):
+    if IdempotencyService.is_processed(idempotency_key):
         logger.info(f"Node {node_id} in execution {execution_id} already processed, skipping")
         return
 

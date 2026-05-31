@@ -16,11 +16,21 @@ class CircuitBreaker(models.Model):
     )
 
     opened_at = models.DateTimeField(
-        auto_now_add=True
+        auto_now_add=True,
+        null=True,
+        blank=True
     )
 
     updated_at = models.DateTimeField(
         auto_now=True
+    )
+
+    half_open_requests_made = models.IntegerField(
+        default=0
+    )
+
+    is_half_open = models.BooleanField(
+        default=False
     )
 
     def __str__(self):

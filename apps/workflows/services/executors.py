@@ -2,6 +2,8 @@ import logging
 import requests
 import time
 
+from apps.executions.services.circuit_breaker import CircuitBreakerService
+
 logger = logging.getLogger(__name__)
 
 class NodeExecutor:
@@ -95,17 +97,22 @@ class NodeExecutor:
     def handle_webhook(node, context):
         configuration = node.configuration or {}
         url = configuration.get("url")
-        response = requests.post(
-            url,
-            json=context,
-            timeout=10
-        )
 
-        logger.info(
-            f"Webhook sent: {response.status_code}"
-        )
+        if not CircuitBreakerService.allow_request("webhook_service"):
+            logger.warning("Circuit breaker is open for webhook_service")
+            raise Exception("Circuit breaker open - request blocked")
+        try:
+            response = requests.post(url,json=context, timeout=10)
+            CircuitBreakerService.record_success("webhook_service")
 
+        except Exception:
+            CircuitBreakerService.record_failure("webhook_service")
+            raise
+
+        logger.info(f"Webhook sent: {response.status_code}")
         return context
+
+
 
     @staticmethod
     def handle_delay(node, context):
