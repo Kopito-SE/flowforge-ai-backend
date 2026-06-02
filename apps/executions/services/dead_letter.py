@@ -9,10 +9,12 @@ class FailureHandlingService:
             task_name,
             payload,
             error,
-            retries,
+            total_retry_count,
     ):
         logger.error(
-            f"Moving Task to DLQ: {task_name}"
+            "Moving Task to DLQ: %s after %s retries",
+            task_name,
+            total_retry_count,
         )
 
         DeadLetterTask.objects.create(
@@ -20,6 +22,6 @@ class FailureHandlingService:
             task_name=task_name,
             payload=payload,
             error_message=str(error),
-            retries=retries
+            retries=total_retry_count
 
         )

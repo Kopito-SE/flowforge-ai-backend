@@ -10,11 +10,13 @@ from apps.executions.services import FailureHandlingService
 
 logger = logging.getLogger(__name__)
 
+NODE_TASK_INITIAL_RETRY_LIMIT = 3
+NODE_TASK_TOTAL_RETRY_LIMIT = 6
+NODE_TASK_INITIAL_RETRY_DELAY = 5
+NODE_TASK_HALF_OPEN_RETRY_DELAY = 60
+
 @shared_task(bind=True, max_retries=3)
-def execute_workflow_task(
-        self,
-        execution_id,
-):
+def execute_workflow_task(self, execution_id):
 
     try:
 
@@ -38,7 +40,7 @@ def execute_workflow_task(
         )
         raise
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=NODE_TASK_TOTAL_RETRY_LIMIT)
 def execute_node_task(
     self,
     execution_id,
@@ -169,22 +171,29 @@ def execute_node_task(
             "status": "failed",
             "error": str(exc),
         })
-        retries=self.request.retries
+        retries = self.request.retries
 
-        if retries >= 3:
+        if retries >= NODE_TASK_TOTAL_RETRY_LIMIT:
             FailureHandlingService.move_to_dead_letter(
-                task_name="execution_node_task",
+                task_name=self.name,
                 payload={
                     "execution_id": execution_id,
                     "node_id": node_id,
                     "context": context,
                 },
                 error=exc,
-                retries=retries,
+                total_retry_count=retries,
             )
             return
+
+        countdown = (
+            NODE_TASK_INITIAL_RETRY_DELAY
+            if retries < NODE_TASK_INITIAL_RETRY_LIMIT
+            else NODE_TASK_HALF_OPEN_RETRY_DELAY
+        )
+
         raise self.retry(
             exc=exc,
-            countdown=5
+            countdown=countdown,
         )
 

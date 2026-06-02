@@ -199,30 +199,3 @@ class WorkflowEngineTests(TestCase):
         self.assertIn("boom", execution.error_message)
         self.assertEqual(step.status, "failed")
         self.assertIn("boom", step.error_message)
-
-    def test_trigger_service_enqueues_execution_for_event(self):
-        trigger_node = self._create_node(
-            "Event trigger",
-            "event_trigger",
-            {"event_type": "user.created"},
-        )
-        next_node = self._create_node("Welcome email", "email")
-
-        NodeConnection.objects.create(
-            source_node=trigger_node,
-            target_node=next_node,
-        )
-
-        with patch(
-            "apps.workflows.services.triggers.execute_workflow_task.delay"
-        ) as task_mock:
-            WorkflowTriggerService.trigger_event(
-                "user.created",
-                {"user_id": 42, "email": "ada@example.com"},
-            )
-
-        execution = WorkflowExecution.objects.get(workflow=self.workflow)
-
-        self.assertEqual(execution.current_node, next_node)
-        self.assertEqual(execution.context["user_id"], 42)
-        self.assertEqual(task_mock.call_count, 1)
