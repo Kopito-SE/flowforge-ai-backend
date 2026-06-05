@@ -40,6 +40,11 @@ class WorkflowExecution(models.Model):
         default=dict
     )
 
+    metadata = models.JSONField(
+        default=dict,
+        blank=True
+    )
+
     started_at = models.DateTimeField(
         auto_now_add=True
     )

@@ -1,8 +1,6 @@
 import uuid
 from django.db import models
 
-
-
 class Node(models.Model):
 
     NODE_TYPES = [
@@ -45,6 +43,14 @@ class Node(models.Model):
         null=True,
         blank=True
 
+    )
+
+    compensation_node = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name='compensates',
+        null=True,
+        blank=True
     )
 
     created_at = models.DateTimeField(
