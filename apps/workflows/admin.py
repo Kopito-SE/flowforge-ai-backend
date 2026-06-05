@@ -409,9 +409,10 @@ class WorkflowExecutionAdmin(admin.ModelAdmin):
     @admin.display(description=_("Context Data"))
     def formatted_context(self, obj):
         import json
+        from django.core.serializers.json import DjangoJSONEncoder
         return format_html(
             "<pre>{}</pre>",
-            json.dumps(obj.context or {}, indent=2),
+            json.dumps(obj.context or {}, indent=2, cls=DjangoJSONEncoder),
         )
 
     # -------------------------

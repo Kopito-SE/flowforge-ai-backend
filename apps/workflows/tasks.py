@@ -31,7 +31,7 @@ def execute_workflow_task(self, execution_id):
 
 
 @shared_task(bind=True, max_retries=NODE_TASK_TOTAL_RETRY_LIMIT)
-def execute_node_task(self, execution_id, node_id, context, executed_nodes=None):
+def execute_node_task(self, execution_id, node_id, context, executed_node_ids=None):
     """
     Execute a single node in the workflow with compensation tracking and circuit breaker
     """
@@ -39,8 +39,11 @@ def execute_node_task(self, execution_id, node_id, context, executed_nodes=None)
     from apps.executions.services import IdempotencyService
     from apps.workflows.services import CompensationService
 
-    if executed_nodes is None:
-        executed_nodes = []
+    if executed_node_ids is None:
+        executed_node_ids = []
+
+    # Reconstruct Node objects from IDs for compensation tracking
+    executed_nodes = list(Node.objects.filter(id__in=executed_node_ids))
 
     execution = None
     node = None
@@ -89,13 +92,14 @@ def execute_node_task(self, execution_id, node_id, context, executed_nodes=None)
             "status": "completed",
         })
 
-        # Track successful node execution
+        # Track successful node execution (store ID, not full model object)
+        executed_node_ids.append(str(node.id))
         executed_nodes.append(node)
 
-        # Save executed_nodes to execution metadata for persistence
+        # Save executed_nodes to execution metadata for persistence (UUIDs as strings)
         execution.metadata = {
             **(execution.metadata or {}),
-            'executed_nodes_ids': [n.id for n in executed_nodes]  # Store IDs for recovery
+            'executed_nodes_ids': [str(nid) for nid in executed_node_ids]
         }
         execution.save(update_fields=["metadata"])
 
@@ -122,7 +126,7 @@ def execute_node_task(self, execution_id, node_id, context, executed_nodes=None)
                 str(execution.id),
                 str(next_connection.target_node.id),
                 context,
-                executed_nodes,  # Pass the list of node objects
+                executed_node_ids,  # Pass list of node ID strings (JSON-safe)
             )
         else:
             # Workflow completed successfully
@@ -152,7 +156,7 @@ def execute_node_task(self, execution_id, node_id, context, executed_nodes=None)
             execution.completed_at = timezone.now()
             execution.save(update_fields=["status", "error_message", "completed_at"])
 
-            # Trigger compensation for all successfully executed nodes (YOUR CODE)
+            # Trigger compensation for all successfully executed nodes
             if executed_nodes:
                 logger.warning(
                     f"Compensating {len(executed_nodes)} nodes due to failure at {node.name if node else 'unknown'}"
@@ -182,7 +186,7 @@ def execute_node_task(self, execution_id, node_id, context, executed_nodes=None)
                     "execution_id": execution_id,
                     "node_id": node_id,
                     "context": context,
-                    "executed_nodes_ids": [n.id for n in executed_nodes],
+                    "executed_nodes_ids": [str(n.id) for n in executed_nodes],
                 },
                 error=exc,
                 total_retry_count=retries,
@@ -211,9 +215,12 @@ def resume_execution(execution_id):
     # Reconstruct executed_nodes list from IDs
     executed_nodes = list(Node.objects.filter(id__in=executed_node_ids))
 
+    # Pass node ID strings (JSON-safe), not model objects
+    executed_node_id_strings = [str(nid) for nid in executed_node_ids]
+
     execute_node_task.delay(
         str(execution.id),
         str(execution.current_node.id),
         execution.context,
-        executed_nodes
+        executed_node_id_strings
     )

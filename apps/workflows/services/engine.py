@@ -114,13 +114,18 @@ class WorkFlowEngine:
             raise
 
     @staticmethod
-    def _execute_async_with_compensation(execution_id, executed_nodes=None):
+    def _execute_async_with_compensation(execution_id, executed_node_ids=None):
         """
         Async version for tracking compensation across Celery tasks.
         This method is called by individual node tasks to maintain compensation state.
         """
-        if executed_nodes is None:
-            executed_nodes = []
+        from apps.workflows.models import Node
+
+        if executed_node_ids is None:
+            executed_node_ids = []
+
+        # Reconstruct Node objects from ID strings for compensation tracking
+        executed_nodes = list(Node.objects.filter(id__in=executed_node_ids))
 
         execution = WorkflowExecution.objects.get(id=execution_id)
         node = execution.current_node
@@ -129,15 +134,15 @@ class WorkFlowEngine:
             # Execute current node
             context = NodeExecutor.execute(node, execution.context)
 
-            # Track successful node (store Node objects, not dicts)
+            # Track successful node (store ID string, not full model object)
+            executed_node_ids.append(str(node.id))
             executed_nodes.append(node)
 
             # Update execution with new context and metadata tracking
             execution.context = context
-            executed_node_ids = [n.id for n in executed_nodes]
             execution.metadata = {
                 **(execution.metadata or {}),
-                'executed_nodes_ids': [str(nid) for nid in executed_node_ids]
+                'executed_nodes_ids': list(executed_node_ids)
             }
             execution.save()
 
@@ -162,7 +167,7 @@ class WorkFlowEngine:
                     str(execution.id),
                     str(next_connection.target_node.id),
                     context,
-                    executed_nodes  # Pass tracked nodes to next task
+                    executed_node_ids  # Pass list of ID strings (JSON-safe)
                 )
             else:
                 # Workflow complete
