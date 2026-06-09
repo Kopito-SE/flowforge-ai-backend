@@ -2,7 +2,7 @@ import logging
 from django.utils import timezone
 from apps.workflows.models import WorkflowExecution
 from apps.workflows.services.executors import NodeExecutor
-from apps.workflows.services import CompensationService
+from apps.workflows.services.compensation import CompensationService
 
 logger = logging.getLogger(__name__)
 

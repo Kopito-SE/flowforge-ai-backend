@@ -2,7 +2,10 @@ import logging
 import requests
 import time
 
-from apps.executions.services.circuit_breaker import CircuitBreakerService
+from apps.executions.services.circuit_breaker import (
+    CircuitBreakerOpen,
+    CircuitBreakerService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +87,7 @@ class NodeExecutor:
         configuration = node.configuration or {}
         event_name = configuration.get("event_name", "unknown")
         logger.info(f"Processing event: {event_name}")
-        return context\
+        return context
 
     @staticmethod
     def handle_email(node, context):
@@ -97,14 +100,24 @@ class NodeExecutor:
     def handle_webhook(node, context):
         configuration = node.configuration or {}
         url = configuration.get("url")
+        integration_id = configuration.get("integration_id")
 
-        if not CircuitBreakerService.allow_request("webhook_service"):
-            logger.warning("Circuit breaker is open for webhook_service")
-            raise Exception("Circuit breaker open - request blocked")
+        if integration_id:
+            from apps.integrations.services import IntegrationDispatcher
+
+            IntegrationDispatcher.dispatch(
+                integration_id=integration_id,
+                payload=context,
+            )
+            return context
+
         try:
+            CircuitBreakerService.allow_request("webhook_service")
             response = requests.post(url,json=context, timeout=10)
             CircuitBreakerService.record_success("webhook_service")
-
+        except CircuitBreakerOpen:
+            logger.warning("Circuit breaker is open for webhook_service")
+            raise Exception("Circuit breaker open - request blocked")
         except Exception:
             CircuitBreakerService.record_failure("webhook_service")
             raise
@@ -131,3 +144,29 @@ class NodeExecutor:
         time.sleep(seconds)
 
         return context
+
+    @staticmethod
+    def handle_schedule_trigger(node, context):
+        logger.info(f"Schedule trigger node executed: {node.name}")
+        return context
+
+    @staticmethod
+    def handle_ai_prompt(node, context):
+        from apps.ai.services import AIWorkflowService
+
+        logger.info(f"AI prompt node executed: {node.name}")
+        return AIWorkflowService.execute_prompt(node, context)
+
+    @staticmethod
+    def handle_ai_condition(node, context):
+        from apps.ai.services import AIWorkflowService
+
+        logger.info(f"AI condition node executed: {node.name}")
+        return AIWorkflowService.execute_condition(node, context)
+
+    @staticmethod
+    def handle_ai_agent(node, context):
+        from apps.ai.services import AIWorkflowService
+
+        logger.info(f"AI agent node executed: {node.name}")
+        return AIWorkflowService.execute_agent(node, context)

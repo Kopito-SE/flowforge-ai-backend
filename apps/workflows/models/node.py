@@ -12,6 +12,9 @@ class Node(models.Model):
         ("delay", "Delay"),
         ("event_trigger", "Event Trigger"),
         ("schedule_trigger", "Schedule Trigger"),
+        ("ai_prompt", "AI Prompt"),
+        ("ai_condition", "AI Condition"),
+        ("ai_agent", "AI Agent"),
 
     ]
 
@@ -51,6 +54,19 @@ class Node(models.Model):
         related_name='compensates',
         null=True,
         blank=True
+    )
+
+    position_x = models.IntegerField(
+        default=0,
+    )
+
+    position_y = models.IntegerField(
+        default=0,
+    )
+
+    ui_metadata = models.JSONField(
+        default=dict,
+        blank=True,
     )
 
     created_at = models.DateTimeField(

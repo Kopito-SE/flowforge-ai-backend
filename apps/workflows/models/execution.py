@@ -8,6 +8,8 @@ class WorkflowExecution(models.Model):
         ("running", "Running"),
         ("completed", "Completed"),
         ("failed", "Failed")
+        ,
+        ("cancelled", "Cancelled"),
     ]
 
     id = models.UUIDField(
@@ -56,6 +58,30 @@ class WorkflowExecution(models.Model):
 
     error_message = models.TextField(
         blank=True
+    )
+
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    retry_count = models.PositiveIntegerField(
+        default=0,
+    )
+
+    duration_ms = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    cpu_time_ms = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+    )
+
+    memory_usage_mb = models.PositiveIntegerField(
+        null=True,
+        blank=True,
     )
 
     def __str__(self):
