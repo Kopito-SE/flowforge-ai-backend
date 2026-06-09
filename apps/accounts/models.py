@@ -1,8 +1,6 @@
 import uuid
 import logging
-from datetime import datetime, timedelta
-
-from django.conf import settings
+from datetime import timedelta
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils import timezone
