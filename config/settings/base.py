@@ -96,9 +96,18 @@ DATABASES = {
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": env("REDIS_URL"),
+        "LOCATION": env("REDIS_URL", default="redis://127.0.0.1:6379/0"),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "CONNECTION_POOL_CLASS": "redis.BlockingConnectionPool",
+            "CONNECTION_POOL_CLASS_KWARGS": {
+                "max_connections": 50,
+                "timeout": 30,
+                "retry_on_timeout": True,
+            },
+            "SOCKET_CONNECT_TIMEOUT": 10,
+            "SOCKET_TIMEOUT": 10,
+            "RETRY_ON_TIMEOUT": True,
         }
     }
 }
@@ -133,14 +142,23 @@ SIMPLE_JWT = {
 ASGI_APPLICATION = "config.asgi.application"
 
 CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [env("REDIS_URL")],
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(env("REDIS_URL"))],
+            "expiry": 120,
+            "group_expiry": 86400,
+            "capacity": 100
+
         },
     },
 }
 
+REDIS_CONNECTION = {
+    'socket_timeout': 30,
+    'socket_connect_timeout': 30,
+    'retry_on_timeout': True,
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -224,3 +242,5 @@ LOGGING = {
         },
     },
 }
+
+

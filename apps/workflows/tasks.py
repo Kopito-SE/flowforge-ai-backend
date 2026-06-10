@@ -37,7 +37,7 @@ def execute_node_task(self, execution_id, node_id, context, executed_node_ids=No
     """
     from apps.workflows.models import Node
     from apps.executions.services import IdempotencyService
-    from apps.workflows.services import CompensationService
+    from apps.workflows.services.compensation import CompensationService
 
     if executed_node_ids is None:
         executed_node_ids = []
